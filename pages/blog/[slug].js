@@ -85,15 +85,31 @@ export default function BlogPost({ post }) {
   );
 }
 
-export async function getServerSideProps({ params }) {
+export async function getServerSideProps({ params, req }) {
   const { slug } = params;
 
+  const protocol =
+    req?.headers?.["x-forwarded-proto"] ||
+    (req?.headers?.host?.startsWith("localhost") ? "http" : undefined) ||
+    "https";
+  const rawHost =
+    req?.headers?.["x-forwarded-host"] ||
+    req?.headers?.host ||
+    process.env.VERCEL_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.NEXTAUTH_URL;
+  const fallbackBase = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl =
+    rawHost && /^https?:\/\//.test(rawHost)
+      ? rawHost
+      : rawHost
+      ? `${protocol}://${rawHost}`
+      : fallbackBase;
+
   try {
-    const res = await fetch(
-      `${
-        process.env.NEXTAUTH_URL || "http://localhost:3000"
-      }/api/content?type=blog&published=true`
-    );
+    const apiUrl = `${baseUrl.replace(/\/$/, "")}/api/content?type=blog&published=true`;
+
+    const res = await fetch(apiUrl);
     const posts = await res.json();
     const post = posts.find((p) => p.slug === slug);
 
