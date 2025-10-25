@@ -1,0 +1,36 @@
+node_modules/
+.next/
+/out/
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Uploads (large media files)
+public/uploads/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Archives
+*.tar.gz
+*.zip
+
+# Local restored copy directory (ignored)
+news-restored
+
