@@ -69,3 +69,4 @@ A Next.js application with a custom backend for uploading and editing content.
 - `postcss.config.js` — PostCSS config
 
 Edit `pages/index.js` to start developing.
+# NewNews
