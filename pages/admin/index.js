@@ -7,6 +7,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Ensure we're on the client side before accessing localStorage
+    if (typeof window === "undefined") return;
+
     // Check if logged in
     const loggedIn = localStorage.getItem("adminLoggedIn");
     if (!loggedIn) {
@@ -14,7 +17,7 @@ export default function AdminDashboard() {
       return;
     }
     fetchContents();
-  }, []);
+  }, [router]);
 
   const fetchContents = async () => {
     const res = await fetch("/api/content");

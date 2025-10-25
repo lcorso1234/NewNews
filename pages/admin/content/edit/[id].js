@@ -19,6 +19,9 @@ export default function EditContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Ensure we're on the client side before accessing localStorage
+    if (typeof window === "undefined") return;
+
     const loggedIn = localStorage.getItem("adminLoggedIn");
     if (!loggedIn) {
       router.push("/admin/login");
@@ -27,7 +30,7 @@ export default function EditContent() {
     if (id) {
       fetchContent();
     }
-  }, [id]);
+  }, [id, router]);
 
   const fetchContent = async () => {
     const res = await fetch(`/api/content/${id}`);
