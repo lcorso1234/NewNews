@@ -2,18 +2,19 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 
 export default function AdminLogin() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Simple password check - in production, use proper auth
-    if (password === "admin123") {
+    // Simple username and password check - in production, use proper auth
+    if (username === "lcorso123" && password === "admin123") {
       localStorage.setItem("adminLoggedIn", "true");
       router.push("/admin");
     } else {
-      setError("Invalid password");
+      setError("Invalid username or password");
     }
   };
 
@@ -26,6 +27,21 @@ export default function AdminLogin() {
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="username" className="sr-only">
+              Username
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              required
+              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </div>
           <div>
             <label htmlFor="password" className="sr-only">
               Password
