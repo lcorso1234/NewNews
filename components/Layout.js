@@ -22,12 +22,33 @@ export default function Layout({ children }) {
     setMenuOpen(false);
   };
 
+  const getStoredBookmarks = () => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
+    const storedBookmarks = localStorage.getItem("siteBookmarks");
+
+    if (!storedBookmarks) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(storedBookmarks);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn("Invalid bookmark payload found in localStorage. Resetting.", error);
+      localStorage.removeItem("siteBookmarks");
+      return [];
+    }
+  };
+
   const handleBookmark = () => {
     const pageTitle = document.title;
     const pageUrl = window.location.href;
 
     // Get existing bookmarks from localStorage
-    const bookmarks = JSON.parse(localStorage.getItem("siteBookmarks") || "[]");
+    const bookmarks = getStoredBookmarks();
 
     // Check if page is already bookmarked
     const isBookmarked = bookmarks.some((b) => b.url === pageUrl);
