@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fetchJson } from "../lib/fetchJson";
 
 export default function Blog() {
   const [blogPosts, setBlogPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchBlogPosts();
+    fetchPosts();
   }, []);
 
-  const fetchBlogPosts = async () => {
+  const fetchPosts = async () => {
     try {
-      const res = await fetch("/api/content?type=blog&published=true");
-      const data = await res.json();
+      const data =
+        (await fetchJson("/api/content?type=blog&published=true")) || [];
       setBlogPosts(data);
     } catch (error) {
       console.error("Error fetching blog posts:", error);
@@ -21,7 +22,9 @@ export default function Blog() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
 
   return (
     <div className="space-y-12">

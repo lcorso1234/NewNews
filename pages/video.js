@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchJson } from "../lib/fetchJson";
 
 export default function Video() {
   const [videos, setVideos] = useState([]);
@@ -10,18 +11,9 @@ export default function Video() {
 
   const fetchVideos = async () => {
     try {
-      const res = await fetch("/api/content?type=video&published=true");
-      const data = await res.json();
-      console.log("fetchVideos response", data);
-      if (!res.ok) {
-        console.error("Failed to fetch videos", res.status, data);
-        setVideos([]);
-      } else if (!Array.isArray(data)) {
-        console.warn("Expected videos array but got:", data);
-        setVideos([]);
-      } else {
-        setVideos(data);
-      }
+      const data =
+        (await fetchJson("/api/content?type=video&published=true")) || [];
+      setVideos(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching videos:", error);
     } finally {
@@ -29,7 +21,9 @@ export default function Video() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
 
   return (
     <div className="space-y-12">

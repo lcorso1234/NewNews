@@ -2,42 +2,53 @@ import dbConnect from "../../../lib/mongodb";
 import Content from "../../../lib/models/Content";
 
 export default async function handler(req, res) {
-  // Authentication removed — admin access is open
-  await dbConnect();
+  try {
+    await dbConnect();
+  } catch (error) {
+    console.error("Database connection error:", error);
+    return res.status(500).json({
+      error: "Database connection failed",
+      details:
+        process.env.NODE_ENV !== "production" ? error.message : undefined,
+    });
+  }
 
   if (req.method === "GET") {
     try {
       const { type, published } = req.query;
-      let query = {};
+      const filter = {};
 
       if (type) {
-        query.type = type;
+        filter.type = type;
       }
 
       if (published === "true") {
-        query.published = true;
+        filter.published = true;
       }
 
-      const contents = await Content.find(query).sort({ createdAt: -1 });
-      res.status(200).json(contents);
+      const contents = await Content.find(filter).sort({ createdAt: -1 });
+      return res.status(200).json(contents);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch contents" });
+      console.error("Error fetching content:", error);
+      return res.status(500).json({ error: "Failed to fetch content" });
     }
-  } else if (req.method === "POST") {
+  }
+
+  if (req.method === "POST") {
     try {
       const content = new Content(req.body);
       await content.save();
-      res.status(201).json(content);
+      return res.status(201).json(content);
     } catch (error) {
       console.error("Error creating content:", error);
-      res.status(500).json({
+      return res.status(500).json({
         error: "Failed to create content",
         details: error.message,
         validationErrors: error.errors,
       });
     }
-  } else {
-    res.setHeader("Allow", ["GET", "POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
   }
+
+  res.setHeader("Allow", ["GET", "POST"]);
+  return res.status(405).end(`Method ${req.method} Not Allowed`);
 }

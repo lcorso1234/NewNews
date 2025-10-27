@@ -3,12 +3,35 @@ import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import QuillEditor from "../../../components/QuillEditor";
 
+const defaultValues = {
+  type: "",
+  title: "",
+  description: "",
+  content: "",
+  audioUrl: "",
+  videoUrl: "",
+  imageUrl: "",
+  slug: "",
+  author: "",
+  published: false,
+};
+
 export default function NewContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    control,
+    formState: { errors },
+  } = useForm({ defaultValues });
+
+  const type = watch("type");
 
   useEffect(() => {
-    // Ensure we're on the client side before accessing localStorage
     if (typeof window === "undefined") return;
 
     const loggedIn = localStorage.getItem("adminLoggedIn");
@@ -19,84 +42,64 @@ export default function NewContent() {
     setLoading(false);
   }, [router]);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    control,
-    formState: { errors },
-  } = useForm();
-  const [uploading, setUploading] = useState(false);
-
-  const type = watch("type");
-
-  if (loading) return <div>Loading...</div>;
-
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     try {
       const res = await fetch("/api/content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
       });
 
-      if (res.ok) {
-        if (router.pathname !== "/admin") router.push("/admin");
-      } else {
-        const errorData = await res.json();
-        console.error("Error creating content:", errorData);
-
-        let errorMessage = "Error creating content";
-        if (errorData.details) {
-          errorMessage += `: ${errorData.details}`;
-        }
-        if (errorData.validationErrors) {
-          const validationMessages = Object.values(errorData.validationErrors)
-            .map((err) => err.message)
-            .join(", ");
-          errorMessage += `\nValidation errors: ${validationMessages}`;
-        }
-
-        alert(errorMessage);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(
+          data.error ||
+            "Error creating content. Please check the fields and try again."
+        );
       }
+
+      router.push("/admin");
     } catch (error) {
       console.error("Error creating content:", error);
-      alert(
-        "Network error: Unable to create content. Please check your connection and try again."
-      );
+      alert(error.message || "Error creating content");
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error uploading file");
+      }
+
       const { url } = await res.json();
-      const fieldName =
-        type === "blog"
-          ? "imageUrl"
-          : type === "podcast"
-          ? "audioUrl"
-          : "videoUrl";
-      setValue(fieldName, url);
-    } else {
-      alert("Error uploading file");
+      const targetField =
+        type === "blog" ? "imageUrl" : type === "podcast" ? "audioUrl" : "videoUrl";
+      setValue(targetField, url);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert(error.message || "Error uploading file");
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
-  // auth removed — open admin
+  if (loading) {
+    return <div className="p-8 text-center">Checking access...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 py-10">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,18 +127,35 @@ export default function NewContent() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  {...register("title", { required: true })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.title && (
-                  <span className="text-red-500">This field is required</span>
-                )}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    {...register("title", { required: true })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  {errors.title && (
+                    <span className="text-red-500">This field is required</span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Slug
+                  </label>
+                  <input
+                    type="text"
+                    {...register("slug", { required: true })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="unique-url-slug"
+                  />
+                  {errors.slug && (
+                    <span className="text-red-500">This field is required</span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -162,10 +182,7 @@ export default function NewContent() {
                     control={control}
                     rules={{ required: type === "blog" }}
                     render={({ field }) => (
-                      <QuillEditor
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
+                      <QuillEditor value={field.value} onChange={field.onChange} />
                     )}
                   />
                   {errors.content && (
@@ -209,7 +226,7 @@ export default function NewContent() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   {type === "blog"
-                    ? "Image"
+                    ? "Featured Image"
                     : type === "podcast"
                     ? "Audio File"
                     : "Video File"}
@@ -231,48 +248,19 @@ export default function NewContent() {
                   <img
                     src={watch("imageUrl")}
                     alt="Preview"
-                    className="mt-2 h-20 w-20 object-cover"
-                  />
-                )}
-                {type === "podcast" && watch("audioUrl") && (
-                  <audio controls src={watch("audioUrl")} className="mt-2" />
-                )}
-                {type === "video" && watch("videoUrl") && (
-                  <video
-                    controls
-                    src={watch("videoUrl")}
-                    className="mt-2 h-20 w-20 object-cover"
+                    className="mt-2 h-32 object-cover border border-gray-200"
                   />
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Slug
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" {...register("published")} />
+                  <span className="text-sm text-gray-700">Publish immediately</span>
                 </label>
-                <input
-                  type="text"
-                  {...register("slug", { required: true })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.slug && (
-                  <span className="text-red-500">This field is required</span>
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (router.pathname !== "/admin") router.push("/admin");
-                  }}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
-                >
-                  Cancel
-                </button>
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   Create
                 </button>

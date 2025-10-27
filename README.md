@@ -1,16 +1,16 @@
-# News Site with Custom Backend
+# NewNews (Full Stack)
 
-A Next.js application with a custom backend for uploading and editing content.
+An editorial-style Next.js site with a lightweight Node.js backend. Editors can log in, create or update stories, podcasts, and videos, and publish them live. Content persists in MongoDB, making the project production-ready for deployments on Vercel.
 
 ## Features
 
-- Content management system for blog posts, podcasts, and videos
-- Admin dashboard for creating and editing content
-- File upload support for images, audio, and video
-- Authentication system
-- MongoDB database integration
+- Admin dashboard with create/edit/delete flows for multiple content types
+- Password-protected login backed by environment-configurable credentials
+- MongoDB persistence via Mongoose with connection pooling for serverless environments
+- Media upload endpoint (writes to `public/uploads/` locally; swap in a cloud provider for production)
+- Tailwind CSS styling, animated layout transitions, and a newspaper-inspired front page
 
-## Setup
+## Getting Started
 
 1. Install dependencies:
 
@@ -18,55 +18,53 @@ A Next.js application with a custom backend for uploading and editing content.
    npm install
    ```
 
-2. Set up MongoDB:
+2. Configure environment variables by creating `.env.local`:
 
-   - Install MongoDB locally or use a cloud service like MongoDB Atlas
-   - Update `MONGODB_URI` in `.env.local`
+   ```bash
+   MONGODB_URI="your MongoDB connection string"
+   ADMIN_USERNAME="admin"              # optional override
+   ADMIN_PASSWORD_HASH="bcrypt-hash"   # optional override
+   ```
 
-3. Configure environment variables:
+   > Default credentials (`admin` / `admin123`) are bundled for convenience. Set your own values before going live.
 
-   - Copy `.env.local` and update the values
-   - Generate a hashed password for admin:
-     ```bash
-     node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('your-password', 10));"
-     ```
-   - Update `ADMIN_PASSWORD` with the hashed value
-
-4. Start the development server:
+3. Run the development server:
 
    ```bash
    npm run dev
    ```
 
-5. Access the admin panel at `/admin/login`
+4. Visit:
+   - `http://localhost:3000` for the public site
+   - `http://localhost:3000/admin/login` for the editor dashboard
 
-## API Endpoints
+## Project Structure
 
-- `GET/POST /api/content` - List and create content
-- `GET/PUT/DELETE /api/content/[id]` - Get, update, delete specific content
-- `POST /api/upload` - Upload files
-- `/api/auth/[...nextauth]` - Authentication
+- `lib/mongodb.js` — MongoDB connection helper tuned for serverless
+- `lib/models/Content.js` — Mongoose schema for articles, podcasts, and videos
+- `pages/api/` — Serverless API routes (auth, content CRUD, media upload)
+- `pages/admin/` — Dashboard, login, and content authoring interfaces
+- `pages/` — Public pages that read data from the API
+- `components/` — Shared layout elements and the rich-text editor wrapper
 
-## Usage
+## Deploying to Vercel
 
-1. Log in to the admin panel
-2. Create new content using the form
-3. Upload images or media files
-4. Publish content to make it visible on the site
-5. Edit or delete existing content as needed
+1. Push the project to a Git provider (GitHub, GitLab, Bitbucket).
+2. Create a new Vercel project and import the repository.
+3. In **Project Settings → Environment Variables**, add:
+   - `MONGODB_URI`
+   - `ADMIN_USERNAME` (optional, defaults to `admin`)
+   - `ADMIN_PASSWORD_HASH` (optional, defaults to a hash of `admin123`)
+4. Redeploy the project. Serverless API routes will connect to MongoDB automatically.
 
-## Content Types
+### Generating a Password Hash
 
-- **Blog**: Text content with optional images
-- **Podcast**: Audio files with descriptions
-- **Video**: Video files with descriptions
+Run this locally and paste the output into `ADMIN_PASSWORD_HASH`:
 
-- `package.json` — scripts and dependencies
-- `pages/_app.js` — imports global styles
-- `pages/index.js` — example page
-- `styles/globals.css` — Tailwind directives
-- `tailwind.config.js` — Tailwind config
-- `postcss.config.js` — PostCSS config
+```bash
+node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('your-password', 10));"
+```
 
-Edit `pages/index.js` to start developing.
-# NewNews
+## Notes on File Uploads
+
+The included `/api/upload` route stores files on the local filesystem, which is ideal for development but ephemeral on Vercel. For production, integrate Cloudinary, AWS S3, Vercel Blob, or another persistent storage provider and update the route accordingly.

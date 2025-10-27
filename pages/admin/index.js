@@ -5,12 +5,11 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Ensure we're on the client side before accessing localStorage
     if (typeof window === "undefined") return;
 
-    // Check if logged in
     const loggedIn = localStorage.getItem("adminLoggedIn");
     if (!loggedIn) {
       router.push("/admin/login");
@@ -20,29 +19,81 @@ export default function AdminDashboard() {
   }, [router]);
 
   const fetchContents = async () => {
-    const res = await fetch("/api/content");
-    const data = await res.json();
-    setContents(data);
-    setLoading(false);
-  };
-
-  const handleDelete = async (id) => {
-    if (confirm("Are you sure you want to delete this content?")) {
-      await fetch(`/api/content/${id}`, { method: "DELETE" });
-      fetchContents();
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch("/api/content");
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to load content");
+      }
+      const data = await res.json();
+      setContents(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching contents:", err);
+      setError(err.message || "Failed to load content");
+      setContents([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePublish = async (id, published) => {
-    await fetch(`/api/content/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ published: !published }),
-    });
-    fetchContents();
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this content?")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/content/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete content");
+      }
+      fetchContents();
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert(err.message || "Failed to delete content");
+    }
   };
 
-  if (loading) return <div>Loading...</div>;
+  const handlePublishToggle = async (id, published) => {
+    try {
+      const res = await fetch(`/api/content/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: !published }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update content");
+      }
+      fetchContents();
+    } catch (err) {
+      console.error("Publish toggle error:", err);
+      alert(err.message || "Failed to update content");
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center text-red-600">
+        {error}
+        <div>
+          <button
+            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded"
+            onClick={fetchContents}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -59,6 +110,15 @@ export default function AdminDashboard() {
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
                 >
                   Add New Content
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem("adminLoggedIn");
+                    router.push("/");
+                  }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md"
+                >
+                  Log out
                 </button>
               </div>
             </div>
@@ -77,9 +137,9 @@ export default function AdminDashboard() {
                             <div className="flex-shrink-0 h-10 w-10">
                               {content.imageUrl && (
                                 <img
-                                  className="h-10 w-10 rounded-full"
+                                  className="h-10 w-10 rounded-full object-cover"
                                   src={content.imageUrl}
-                                  alt=""
+                                  alt={content.title}
                                 />
                               )}
                             </div>
@@ -96,7 +156,10 @@ export default function AdminDashboard() {
                           <div className="flex space-x-2">
                             <button
                               onClick={() =>
-                                handlePublish(content._id, content.published)
+                                handlePublishToggle(
+                                  content._id,
+                                  content.published
+                                )
                               }
                               className={`px-3 py-1 rounded-md text-sm ${
                                 content.published
@@ -108,9 +171,7 @@ export default function AdminDashboard() {
                             </button>
                             <button
                               onClick={() =>
-                                router.push(
-                                  `/admin/content/edit/${content._id}`
-                                )
+                                router.push(`/admin/content/edit/${content._id}`)
                               }
                               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
                             >
@@ -128,6 +189,12 @@ export default function AdminDashboard() {
                     </li>
                   ))}
                 </ul>
+                {contents.length === 0 && (
+                  <div className="p-6 text-center text-gray-500">
+                    No content yet. Click &ldquo;Add New Content&rdquo; to get
+                    started.
+                  </div>
+                )}
               </div>
             </div>
           </div>

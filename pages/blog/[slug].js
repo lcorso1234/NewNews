@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fetchJson } from "../../lib/fetchJson";
 
 export default function BlogPost({ post }) {
   if (!post) {
@@ -88,30 +89,33 @@ export default function BlogPost({ post }) {
 export async function getServerSideProps({ params, req }) {
   const { slug } = params;
 
-  const protocol =
-    req?.headers?.["x-forwarded-proto"] ||
-    (req?.headers?.host?.startsWith("localhost") ? "http" : undefined) ||
-    "https";
-  const rawHost =
-    req?.headers?.["x-forwarded-host"] ||
-    req?.headers?.host ||
-    process.env.VERCEL_URL ||
-    process.env.NEXT_PUBLIC_VERCEL_URL ||
-    process.env.NEXTAUTH_URL;
-  const fallbackBase = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const baseUrl =
-    rawHost && /^https?:\/\//.test(rawHost)
-      ? rawHost
-      : rawHost
-      ? `${protocol}://${rawHost}`
-      : fallbackBase;
-
   try {
-    const apiUrl = `${baseUrl.replace(/\/$/, "")}/api/content?type=blog&published=true`;
+    const protocol =
+      req?.headers?.["x-forwarded-proto"] ||
+      (req?.headers?.host?.startsWith("localhost") ? "http" : undefined) ||
+      "https";
+    const rawHost =
+      req?.headers?.["x-forwarded-host"] ||
+      req?.headers?.host ||
+      process.env.VERCEL_URL ||
+      process.env.NEXT_PUBLIC_VERCEL_URL ||
+      process.env.NEXTAUTH_URL ||
+      "localhost:3000";
 
-    const res = await fetch(apiUrl);
-    const posts = await res.json();
-    const post = posts.find((p) => p.slug === slug);
+    const baseUrl =
+      rawHost && rawHost.startsWith("http")
+        ? rawHost
+        : `${protocol}://${rawHost}`;
+
+    const apiUrl = `${baseUrl.replace(
+      /\/$/,
+      ""
+    )}/api/content?type=blog&published=true`;
+
+    const posts = await fetchJson(apiUrl);
+    const post = Array.isArray(posts)
+      ? posts.find((item) => item.slug === slug)
+      : null;
 
     return {
       props: {

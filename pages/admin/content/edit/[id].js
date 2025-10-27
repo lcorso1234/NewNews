@@ -6,6 +6,8 @@ import QuillEditor from "../../../../components/QuillEditor";
 export default function EditContent() {
   const router = useRouter();
   const { id } = router.query;
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const {
     register,
     handleSubmit,
@@ -15,11 +17,10 @@ export default function EditContent() {
     control,
     formState: { errors },
   } = useForm();
-  const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  const type = watch("type");
 
   useEffect(() => {
-    // Ensure we're on the client side before accessing localStorage
     if (typeof window === "undefined") return;
 
     const loggedIn = localStorage.getItem("adminLoggedIn");
@@ -27,63 +28,87 @@ export default function EditContent() {
       router.push("/admin/login");
       return;
     }
+
     if (id) {
       fetchContent();
     }
   }, [id, router]);
 
   const fetchContent = async () => {
-    const res = await fetch(`/api/content/${id}`);
-    const data = await res.json();
-    reset(data);
-    setLoading(false);
-  };
-
-  const type = watch("type");
-
-  const onSubmit = async (data) => {
-    const res = await fetch(`/api/content/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (res.ok) {
-      if (router.pathname !== "/admin") router.push("/admin");
-    } else {
-      alert("Error updating content");
+    try {
+      const res = await fetch(`/api/content/${id}`);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to load content");
+      }
+      const data = await res.json();
+      reset(data);
+    } catch (error) {
+      console.error("Error loading content:", error);
+      alert(error.message || "Failed to load content");
+      router.push("/admin");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const onSubmit = async (formData) => {
+    try {
+      const res = await fetch(`/api/content/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(
+          data.error ||
+            "Error updating content. Please check the fields and try again."
+        );
+      }
+
+      router.push("/admin");
+    } catch (error) {
+      console.error("Error updating content:", error);
+      alert(error.message || "Error updating content");
+    }
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error uploading file");
+      }
+
       const { url } = await res.json();
-      const fieldName =
-        type === "blog"
-          ? "imageUrl"
-          : type === "podcast"
-          ? "audioUrl"
-          : "videoUrl";
-      setValue(fieldName, url);
-    } else {
-      alert("Error uploading file");
+      const targetField =
+        type === "blog" ? "imageUrl" : type === "podcast" ? "audioUrl" : "videoUrl";
+      setValue(targetField, url);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert(error.message || "Error uploading file");
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Loading content...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-10">
@@ -111,18 +136,34 @@ export default function EditContent() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  {...register("title", { required: true })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.title && (
-                  <span className="text-red-500">This field is required</span>
-                )}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    {...register("title", { required: true })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  {errors.title && (
+                    <span className="text-red-500">This field is required</span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Slug
+                  </label>
+                  <input
+                    type="text"
+                    {...register("slug", { required: true })}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  {errors.slug && (
+                    <span className="text-red-500">This field is required</span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -149,10 +190,7 @@ export default function EditContent() {
                     control={control}
                     rules={{ required: type === "blog" }}
                     render={({ field }) => (
-                      <QuillEditor
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
+                      <QuillEditor value={field.value} onChange={field.onChange} />
                     )}
                   />
                   {errors.content && (
@@ -196,7 +234,7 @@ export default function EditContent() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   {type === "blog"
-                    ? "Image"
+                    ? "Featured Image"
                     : type === "podcast"
                     ? "Audio File"
                     : "Video File"}
@@ -218,48 +256,21 @@ export default function EditContent() {
                   <img
                     src={watch("imageUrl")}
                     alt="Preview"
-                    className="mt-2 h-20 w-20 object-cover"
-                  />
-                )}
-                {type === "podcast" && watch("audioUrl") && (
-                  <audio controls src={watch("audioUrl")} className="mt-2" />
-                )}
-                {type === "video" && watch("videoUrl") && (
-                  <video
-                    controls
-                    src={watch("videoUrl")}
-                    className="mt-2 h-20 w-20 object-cover"
+                    className="mt-2 h-32 object-cover border border-gray-200"
                   />
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Slug
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" {...register("published")} />
+                  <span className="text-sm text-gray-700">Published</span>
                 </label>
-                <input
-                  type="text"
-                  {...register("slug", { required: true })}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                {errors.slug && (
-                  <span className="text-red-500">This field is required</span>
-                )}
-              </div>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => router.push("/admin")}
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
-                >
-                  Cancel
-                </button>
                 <button
                   type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md"
+                  className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
-                  Update
+                  Save Changes
                 </button>
               </div>
             </form>

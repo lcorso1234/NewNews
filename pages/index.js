@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fetchJson } from "../lib/fetchJson";
 
 export default function Home() {
   const [blogPosts, setBlogPosts] = useState([]);
@@ -13,24 +14,19 @@ export default function Home() {
 
   const fetchAllContent = async () => {
     try {
-      // Fetch blog posts
-      const blogRes = await fetch("/api/content?type=blog&published=true");
-      const blogData = await blogRes.json();
-      setBlogPosts(blogData.slice(0, 6)); // Get first 6 posts
+      const blogData =
+        (await fetchJson("/api/content?type=blog&published=true")) || [];
+      setBlogPosts(blogData.slice(0, 6));
 
-      // Fetch videos
-      const videoRes = await fetch("/api/content?type=video&published=true");
-      const videoData = await videoRes.json();
-      setVideos(videoData.slice(0, 3)); // Get first 3 videos
+      const videoData =
+        (await fetchJson("/api/content?type=video&published=true")) || [];
+      setVideos(videoData.slice(0, 3));
 
-      // Fetch podcasts
-      const podcastRes = await fetch(
-        "/api/content?type=podcast&published=true"
-      );
-      const podcastData = await podcastRes.json();
-      setPodcasts(podcastData.slice(0, 3)); // Get first 3 podcasts
+      const podcastData =
+        (await fetchJson("/api/content?type=podcast&published=true")) || [];
+      setPodcasts(podcastData.slice(0, 3));
     } catch (error) {
-      console.error("Error fetching content:", error);
+      console.error("Error fetching homepage content:", error);
     } finally {
       setLoading(false);
     }

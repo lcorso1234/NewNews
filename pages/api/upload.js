@@ -41,7 +41,6 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // Authentication removed — uploads open
   if (req.method === "POST") {
     upload.single("file")(req, res, (err) => {
       if (err) {
@@ -53,7 +52,7 @@ export default async function handler(req, res) {
       }
 
       const fileUrl = `/uploads/${req.file.filename}`;
-      res.status(200).json({ url: fileUrl });
+      return res.status(200).json({ url: fileUrl });
     });
   } else {
     res.setHeader("Allow", ["POST"]);

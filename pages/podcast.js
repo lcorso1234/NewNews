@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchJson } from "../lib/fetchJson";
 
 export default function Podcast() {
   const [podcasts, setPodcasts] = useState([]);
@@ -10,10 +11,9 @@ export default function Podcast() {
 
   const fetchPodcasts = async () => {
     try {
-      const res = await fetch("/api/content?type=podcast&published=true");
-      const data = await res.json();
-      console.log("fetchPodcasts response", data);
-      setPodcasts(data || []);
+      const data =
+        (await fetchJson("/api/content?type=podcast&published=true")) || [];
+      setPodcasts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching podcasts:", error);
     } finally {
@@ -21,7 +21,9 @@ export default function Podcast() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
 
   return (
     <div className="space-y-12">
